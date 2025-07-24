@@ -1,22 +1,13 @@
-# start from a Maven image with Java 11
-FROM maven:3.9.9-eclipse-temurin-21 AS builder
 
-# set working directory
-WORKDIR /workspace
+FROM jenkins/jenkins:lts
 
-# copy project files
-COPY pom.xml .
-COPY src src
+USER root
 
-# build plugin, cache .m2 to reuse Maven artifacts
-RUN mvn --batch-mode clean install
+# Optional: install curl if needed
+RUN apt-get update && apt-get install -y curl
 
-# use Jenkins base image to host the plugin
-FROM jenkins/jenkins:lts-jdk17
+# Switch back to jenkins user
+USER jenkins
 
-# skip setup UI
-ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false"
-
-# copy the built .hpi into Jenkins plugin directory
-COPY --from=builder /workspace/target/ansicolor-1.0.7-SNAPSHOT.hpi \
-    /usr/share/jenkins/ref/plugins/ansicolor.hpi
+# Install the unique-id plugin
+RUN jenkins-plugin-cli --plugins unique-id
