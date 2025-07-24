@@ -1,26 +1,18 @@
 # ---- Stage 1: Build the plugin ----
 FROM maven:3.9.6-eclipse-temurin-11 AS builder
 
+# Install git (required by some Jenkins plugin builds)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /plugin
 
-# Copy the source code
+# Copy the full project
 COPY . .
 
-# Build plugin (skip tests if needed)
+# Add Jenkins Plugin Parent POMs (required for 'hpi' packaging to work)
+RUN mvn -ntp -B org.apache.maven.plugins:maven-dependency-plugin:3.6.0:get \
+    -Dartifact=org.jenkins-ci.plugins:plugin:4.64 \
+    -Dtransitive=false
+
+# Now build
 RUN mvn clean package -DskipTests
-
-# ---- Stage 2: Package with Jenkins ----
-FROM jenkins/jenkins:2.387.2-jdk11
-
-USER root
-
-# Create plugin directory if not exists
-RUN mkdir -p /usr/share/jenkins/ref/plugins
-
-# Copy the built plugin
-COPY --from=builder /plugin/target/*.hpi /usr/share/jenkins/ref/plugins/bmc-cfa.hpi
-
-# Give ownership to jenkins user
-RUN chown -R jenkins:jenkins /usr/share/jenkins/ref/plugins
-
-USER jenkins
